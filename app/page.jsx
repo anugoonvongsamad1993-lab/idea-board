@@ -108,8 +108,8 @@ export default function Home() {
         <div style={s.logoWrap}>
           <span style={s.logoEmoji}>🎣</span>
           <div>
-            <div style={s.title}>Fishing Idea Board</div>
-            <div style={s.subtitle}>บันทึกไอเดียเหยื่อปลอม • ตลาด 24 ชั่วโมง</div>
+            <div style={s.title}>TO-DO-LIST & Idea</div>
+            <div style={s.subtitle}>บันทึกไอเดีย •  24 ชั่วโมง</div>
           </div>
         </div>
         <div style={s.countBadge}>{ideas.length} ไอเดีย</div>
