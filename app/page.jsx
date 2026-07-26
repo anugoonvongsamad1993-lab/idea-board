@@ -22,6 +22,7 @@ export default function Home() {
   const [editText, setEditText]       = useState("");
   const [toast, setToast]             = useState(null);
   const [loaded, setLoaded]           = useState(false);
+  const [dragIndex, setDragIndex]     = useState(null);
 
   const showToast = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -36,9 +37,7 @@ export default function Home() {
         setIdeas(JSON.parse(saved));
         showToast("โหลดข้อมูลสำเร็จ ✓");
       }
-    } catch (_) {
-      // Start fresh
-    }
+    } catch (_) {}
     setLoaded(true);
   }, []);
 
@@ -52,7 +51,7 @@ export default function Home() {
     }
   };
 
-  const addIdea = async () => {
+  const addIdea = () => {
     if (!input.trim()) return;
     const idea = {
       id: Date.now(),
@@ -79,22 +78,36 @@ export default function Home() {
     save(updated);
   };
 
-  // ฟังก์ชันย้ายลำดับ
-  const moveIdea = (id, direction) => {
-    const index = ideas.findIndex((i) => i.id === id);
-    if (index === -1) return;
+  // ===== Drag & Drop =====
+  const handleDragStart = (index) => {
+    setDragIndex(index);
+  };
 
-    const newIdeas = [...ideas];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
+  const handleDragOver = (e) => {
+    e.preventDefault(); // จำเป็นมาก ไม่งั้น drop ไม่ได้
+  };
 
-    // ป้องกันไม่ให้ออกนอกขอบ
-    if (targetIndex < 0 || targetIndex >= newIdeas.length) return;
+  const handleDrop = (dropIndex) => {
+    if (dragIndex === null || dragIndex === dropIndex) {
+      setDragIndex(null);
+      return;
+    }
 
-    // สลับตำแหน่ง
-    [newIdeas[index], newIdeas[targetIndex]] = [newIdeas[targetIndex], newIdeas[index]];
+    // ทำงานกับ filtered list ก่อน แล้วค่อยอัปเดต ideas จริง
+    const newFiltered = [...filtered];
+    const [moved] = newFiltered.splice(dragIndex, 1);
+    newFiltered.splice(dropIndex, 0, moved);
 
-    setIdeas(newIdeas);
-    save(newIdeas);
+    // สร้าง ideas ใหม่โดยรักษาลำดับจาก filtered + รายการที่ถูก filter ออก
+    const filteredIds = new Set(newFiltered.map(i => i.id));
+    const others = ideas.filter(i => !filteredIds.has(i.id));
+
+    // รวมใหม่: เอา filtered ที่เรียงใหม่ + รายการที่ไม่ได้โชว์
+    const updated = [...newFiltered, ...others];
+
+    setIdeas(updated);
+    save(updated);
+    setDragIndex(null);
   };
 
   const filtered = ideas.filter((i) => {
@@ -208,16 +221,25 @@ export default function Home() {
               : "🔍 ไม่พบไอเดียที่ค้นหา"}
           </div>
         )}
+
         {filtered.map((idea, idx) => {
           const cat       = getCat(idea.category);
           const isEditing = editingId === idea.id;
+          const isDragging = dragIndex === idx;
+
           return (
             <div
               key={idea.id}
+              draggable={!isEditing}
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={handleDragOver}
+              onDrop={() => handleDrop(idx)}
               style={{
                 ...s.ideaCard,
                 borderLeft: `3px solid ${cat.color}`,
                 animationDelay: `${idx * 0.04}s`,
+                opacity: isDragging ? 0.5 : 1,
+                cursor: isEditing ? "default" : "grab",
               }}
             >
               <div style={s.ideaTop}>
@@ -250,21 +272,13 @@ export default function Home() {
               )}
 
               <div style={s.actions}>
-                <button
-                  onClick={() => moveIdea(idea.id, "up")}
-                  style={s.actionBtn}
-                >↑ ขึ้น</button>
-
-                <button
-                  onClick={() => moveIdea(idea.id, "down")}
-                  style={s.actionBtn}
-                >↓ ลง</button>
-
+                <span style={{ color: "#1e4a7a", fontSize: 12, marginRight: 8 }}>
+                  ⠿ ลากเพื่อย้าย
+                </span>
                 <button
                   onClick={() => { setEditingId(idea.id); setEditText(idea.text); }}
                   style={s.actionBtn}
                 >✏️ แก้ไข</button>
-
                 <button
                   onClick={() => deleteIdea(idea.id)}
                   style={{ ...s.actionBtn, color: "#ef4444" }}
@@ -382,7 +396,7 @@ const s = {
   catTag: { borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 },
   date: { fontSize: 11, color: "#1e4a7a" },
   ideaText: { fontSize: 14.5, lineHeight: 1.75, color: "#b0c8e8" },
-  actions: { display: "flex", gap: 12, marginTop: 10 },
+  actions: { display: "flex", gap: 12, marginTop: 10, alignItems: "center" },
   actionBtn: {
     background: "none", border: "none", cursor: "pointer",
     fontSize: 12, color: "#2a5a8a", padding: 0, fontFamily: "inherit",
