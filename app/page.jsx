@@ -22,7 +22,6 @@ export default function Home() {
   const [editText, setEditText]       = useState("");
   const [toast, setToast]             = useState(null);
   const [loaded, setLoaded]           = useState(false);
-  const [dragIndex, setDragIndex]     = useState(null);
 
   const showToast = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -37,7 +36,9 @@ export default function Home() {
         setIdeas(JSON.parse(saved));
         showToast("โหลดข้อมูลสำเร็จ ✓");
       }
-    } catch (_) {}
+    } catch (_) {
+      // Start fresh
+    }
     setLoaded(true);
   }, []);
 
@@ -51,7 +52,7 @@ export default function Home() {
     }
   };
 
-  const addIdea = () => {
+  const addIdea = async () => {
     if (!input.trim()) return;
     const idea = {
       id: Date.now(),
@@ -78,38 +79,22 @@ export default function Home() {
     save(updated);
   };
 
-  // ===== Drag & Drop =====
-  const handleDragStart = (e, index) => {
-    setDragIndex(index);
-    e.dataTransfer.effectAllowed = "move";
-  };
+  // ฟังก์ชันย้ายลำดับ
+  const moveIdea = (id, direction) => {
+    const index = ideas.findIndex((i) => i.id === id);
+    if (index === -1) return;
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
+    const newIdeas = [...ideas];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
 
-  const handleDrop = (dropIndex) => {
-    if (dragIndex === null || dragIndex === dropIndex) {
-      setDragIndex(null);
-      return;
-    }
+    // ป้องกันไม่ให้ออกนอกขอบ
+    if (targetIndex < 0 || targetIndex >= newIdeas.length) return;
 
-    const newFiltered = [...filtered];
-    const [moved] = newFiltered.splice(dragIndex, 1);
-    newFiltered.splice(dropIndex, 0, moved);
+    // สลับตำแหน่ง
+    [newIdeas[index], newIdeas[targetIndex]] = [newIdeas[targetIndex], newIdeas[index]];
 
-    const filteredIds = new Set(newFiltered.map(i => i.id));
-    const others = ideas.filter(i => !filteredIds.has(i.id));
-    const updated = [...newFiltered, ...others];
-
-    setIdeas(updated);
-    save(updated);
-    setDragIndex(null);
-  };
-
-  const handleDragEnd = () => {
-    setDragIndex(null);
+    setIdeas(newIdeas);
+    save(newIdeas);
   };
 
   const filtered = ideas.filter((i) => {
@@ -223,23 +208,16 @@ export default function Home() {
               : "🔍 ไม่พบไอเดียที่ค้นหา"}
           </div>
         )}
-
         {filtered.map((idea, idx) => {
           const cat       = getCat(idea.category);
           const isEditing = editingId === idea.id;
-          const isDragging = dragIndex === idx;
-
           return (
             <div
               key={idea.id}
-              onDragOver={handleDragOver}
-              onDrop={() => handleDrop(idx)}
               style={{
                 ...s.ideaCard,
                 borderLeft: `3px solid ${cat.color}`,
                 animationDelay: `${idx * 0.04}s`,
-                opacity: isDragging ? 0.45 : 1,
-                transition: "opacity 0.15s",
               }}
             >
               <div style={s.ideaTop}>
@@ -272,18 +250,15 @@ export default function Home() {
               )}
 
               <div style={s.actions}>
-                {/* ปุ่มลากโดยเฉพาะ */}
-                {!isEditing && (
-                  <span
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, idx)}
-                    onDragEnd={handleDragEnd}
-                    style={s.dragHandle}
-                    title="ลากเพื่อย้ายตำแหน่ง"
-                  >
-                    ⠿
-                  </span>
-                )}
+                <button
+                  onClick={() => moveIdea(idea.id, "up")}
+                  style={s.actionBtn}
+                >↑ ขึ้น</button>
+
+                <button
+                  onClick={() => moveIdea(idea.id, "down")}
+                  style={s.actionBtn}
+                >↓ ลง</button>
 
                 <button
                   onClick={() => { setEditingId(idea.id); setEditText(idea.text); }}
@@ -407,16 +382,7 @@ const s = {
   catTag: { borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 },
   date: { fontSize: 11, color: "#1e4a7a" },
   ideaText: { fontSize: 14.5, lineHeight: 1.75, color: "#b0c8e8" },
-  actions: { display: "flex", gap: 14, marginTop: 10, alignItems: "center" },
-  dragHandle: {
-    cursor: "grab",
-    color: "#3a6a9a",
-    fontSize: 18,
-    padding: "2px 6px",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    touchAction: "none",
-  },
+  actions: { display: "flex", gap: 12, marginTop: 10 },
   actionBtn: {
     background: "none", border: "none", cursor: "pointer",
     fontSize: 12, color: "#2a5a8a", padding: 0, fontFamily: "inherit",
