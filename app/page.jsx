@@ -79,6 +79,24 @@ export default function Home() {
     save(updated);
   };
 
+  // ฟังก์ชันย้ายลำดับ
+  const moveIdea = (id, direction) => {
+    const index = ideas.findIndex((i) => i.id === id);
+    if (index === -1) return;
+
+    const newIdeas = [...ideas];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+    // ป้องกันไม่ให้ออกนอกขอบ
+    if (targetIndex < 0 || targetIndex >= newIdeas.length) return;
+
+    // สลับตำแหน่ง
+    [newIdeas[index], newIdeas[targetIndex]] = [newIdeas[targetIndex], newIdeas[index]];
+
+    setIdeas(newIdeas);
+    save(newIdeas);
+  };
+
   const filtered = ideas.filter((i) => {
     const matchCat    = filterCat === "all" || i.category === filterCat;
     const matchSearch = i.text.toLowerCase().includes(search.toLowerCase());
@@ -233,9 +251,20 @@ export default function Home() {
 
               <div style={s.actions}>
                 <button
+                  onClick={() => moveIdea(idea.id, "up")}
+                  style={s.actionBtn}
+                >↑ ขึ้น</button>
+
+                <button
+                  onClick={() => moveIdea(idea.id, "down")}
+                  style={s.actionBtn}
+                >↓ ลง</button>
+
+                <button
                   onClick={() => { setEditingId(idea.id); setEditText(idea.text); }}
                   style={s.actionBtn}
                 >✏️ แก้ไข</button>
+
                 <button
                   onClick={() => deleteIdea(idea.id)}
                   style={{ ...s.actionBtn, color: "#ef4444" }}
