@@ -79,12 +79,14 @@ export default function Home() {
   };
 
   // ===== Drag & Drop =====
-  const handleDragStart = (index) => {
+  const handleDragStart = (e, index) => {
     setDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e) => {
-    e.preventDefault(); // จำเป็นมาก ไม่งั้น drop ไม่ได้
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDrop = (dropIndex) => {
@@ -93,20 +95,20 @@ export default function Home() {
       return;
     }
 
-    // ทำงานกับ filtered list ก่อน แล้วค่อยอัปเดต ideas จริง
     const newFiltered = [...filtered];
     const [moved] = newFiltered.splice(dragIndex, 1);
     newFiltered.splice(dropIndex, 0, moved);
 
-    // สร้าง ideas ใหม่โดยรักษาลำดับจาก filtered + รายการที่ถูก filter ออก
     const filteredIds = new Set(newFiltered.map(i => i.id));
     const others = ideas.filter(i => !filteredIds.has(i.id));
-
-    // รวมใหม่: เอา filtered ที่เรียงใหม่ + รายการที่ไม่ได้โชว์
     const updated = [...newFiltered, ...others];
 
     setIdeas(updated);
     save(updated);
+    setDragIndex(null);
+  };
+
+  const handleDragEnd = () => {
     setDragIndex(null);
   };
 
@@ -230,16 +232,14 @@ export default function Home() {
           return (
             <div
               key={idea.id}
-              draggable={!isEditing}
-              onDragStart={() => handleDragStart(idx)}
               onDragOver={handleDragOver}
               onDrop={() => handleDrop(idx)}
               style={{
                 ...s.ideaCard,
                 borderLeft: `3px solid ${cat.color}`,
                 animationDelay: `${idx * 0.04}s`,
-                opacity: isDragging ? 0.5 : 1,
-                cursor: isEditing ? "default" : "grab",
+                opacity: isDragging ? 0.45 : 1,
+                transition: "opacity 0.15s",
               }}
             >
               <div style={s.ideaTop}>
@@ -272,13 +272,24 @@ export default function Home() {
               )}
 
               <div style={s.actions}>
-                <span style={{ color: "#1e4a7a", fontSize: 12, marginRight: 8 }}>
-                  ⠿ ลากเพื่อย้าย
-                </span>
+                {/* ปุ่มลากโดยเฉพาะ */}
+                {!isEditing && (
+                  <span
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    style={s.dragHandle}
+                    title="ลากเพื่อย้ายตำแหน่ง"
+                  >
+                    ⠿
+                  </span>
+                )}
+
                 <button
                   onClick={() => { setEditingId(idea.id); setEditText(idea.text); }}
                   style={s.actionBtn}
                 >✏️ แก้ไข</button>
+
                 <button
                   onClick={() => deleteIdea(idea.id)}
                   style={{ ...s.actionBtn, color: "#ef4444" }}
@@ -396,7 +407,16 @@ const s = {
   catTag: { borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 },
   date: { fontSize: 11, color: "#1e4a7a" },
   ideaText: { fontSize: 14.5, lineHeight: 1.75, color: "#b0c8e8" },
-  actions: { display: "flex", gap: 12, marginTop: 10, alignItems: "center" },
+  actions: { display: "flex", gap: 14, marginTop: 10, alignItems: "center" },
+  dragHandle: {
+    cursor: "grab",
+    color: "#3a6a9a",
+    fontSize: 18,
+    padding: "2px 6px",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    touchAction: "none",
+  },
   actionBtn: {
     background: "none", border: "none", cursor: "pointer",
     fontSize: 12, color: "#2a5a8a", padding: 0, fontFamily: "inherit",
